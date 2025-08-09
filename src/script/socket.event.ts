@@ -2,7 +2,7 @@ import { Socket, io } from 'socket.io-client'
 import { deleteMessage } from "./socket.emit/delete.message.emit"
 import { editMessage } from './socket.emit/edit.message.emit.js'
 import { reactMessage } from './socket.emit/react.message.emit.js'
-
+import type { TestMessage } from '@/views/Home.vue'
 import {
   newMessageNotification,
   receiveDeletedMessage,
@@ -34,6 +34,11 @@ export class EmitMenuAction {
   static deleteMessage(messageID: string) {
     socket.emit('deleteMessage', deleteMessage(messageID))
     console.log(messageID)
+  }
+
+  static messageSend(messageData: TestMessage) {
+    socket.emit('chatMessage', messageData)
+    console.log(messageData)
   }
 }
 

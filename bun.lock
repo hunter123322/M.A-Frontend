@@ -5,6 +5,7 @@
       "name": "mafrontend",
       "dependencies": {
         "@types/socket.io-client": "^3.0.0",
+        "axios": "^1.11.0",
         "lucide-vue-next": "^0.536.0",
         "pinia": "^3.0.3",
         "socket.io-client": "^4.8.1",
