@@ -17,12 +17,17 @@ import {
     CircleEllipsis,
     Sun,
     Moon,
-    EllipsisVertical
+    EllipsisVertical,
+    BellOff
 } from 'lucide-vue-next';
 import { ref, onMounted, nextTick, watch } from 'vue';
 import testMessages from '@/testData/messageData';
 import { EmitMenuAction } from '@/script/socket.event';
 import { socket } from '@/script/socket.event';
+import conversationData from '@/testData/conversationData';
+
+let crurentConversationID: string | null;
+
 socket.emit("joinConversation", "convAB");
 
 export type TestMessage = {
@@ -47,22 +52,19 @@ type Val = {
     success: boolean,
 }
 
+let socketMessage: TestMessage[] = []
 
 socket.emit("getMessage", { conversationID: 1, latestMessage: 1 }, (val: Val) => {
-  console.log(val);
-  messages.value = val.messages;
+    console.log(val);
+    socketMessage = val.messages;
 });
-
-
-
 
 const messageContainer = ref<HTMLElement | null>(null);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const isDarkMode = ref(true);
 const messageStates = ref<{ [key: string]: boolean }>({})
-const currentUser = "1"; // this can be dynamically set from auth
-const messages = ref<TestMessage[]>([...testMessages]);
-// const messages = ref<TestMessage[]>([...msg.value]); // reactive message list
+const currentUser = localStorage.getItem("user_id");
+const messages = ref<TestMessage[]>([]);
 const inputRef = ref<HTMLInputElement | null>(null); // input field reference
 
 function scrollToBottom() {
@@ -104,12 +106,14 @@ async function sendMessage() {
     const text = inputRef.value?.value.trim();
     if (!text) return;
 
+    if(currentUser === null) return
+
     // 1. Display instantly
     const tempMsg: TestMessage = {
         _id: Date.now().toString(),
         senderID: currentUser,
         receiverID: "userB", // set your receiver dynamically
-        conversationID: "convAB", // set your conversation dynamically
+        conversationID: crurentConversationID as string, // set your conversation dynamically
         content: text,
         contentType: "text",
         reactions: [],
@@ -126,23 +130,23 @@ async function sendMessage() {
         EmitMenuAction.messageSend(tempMsg)
     } catch (err) {
         console.error("Send failed:", err);
-        const idx = messages.value.findIndex(m => m._id === tempMsg._id);
-        if (idx !== -1) messages.value[idx].status = "failed";
+        // const idx = messages.value.findIndex(m => m._id === tempMsg._id);
+        // if (idx !== -1) messages.value[idx].status = "failed";
     }
 }
 
-socket.on("receiveMessage", (receivedMessage: TestMessage) => {
-  messages.value.push(receivedMessage);
-  console.log(messages.value);
-});
-
 function handleKeyDown(e: KeyboardEvent) {
+    const target = e.target as HTMLInputElement;
     if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault(); // stop new line
+        e.preventDefault();
         sendMessage();
     }
 }
 
+socket.on("receiveMessage", (receivedMessage: TestMessage) => {
+    messages.value.push(receivedMessage);
+    console.log(receivedMessage, "receiveMessage");
+});
 
 onMounted(() => {
     if (textareaRef.value) {
@@ -159,7 +163,7 @@ onMounted(() => {
     }
 });
 
-function handleClick(event: MouseEvent) {
+function handleClick(event: MouseEvent, conversationID: string) {
     const div = event.currentTarget as HTMLElement;
     const span = div.querySelector("span");
     const spanText = span?.textContent ?? "";
@@ -172,6 +176,11 @@ function handleClick(event: MouseEvent) {
     if (!targetSpan) return;
     targetSpan.textContent = spanText;
     sideBar.classList.remove("hidden");
+
+    messages.value = socketMessage.filter(
+        msg => msg.conversationID === conversationID
+    );
+    crurentConversationID = conversationID;
 }
 </script>
 
@@ -204,21 +213,29 @@ function handleClick(event: MouseEvent) {
             </div>
 
             <div :class="isDarkMode ? 'bg-blue-400/40' : 'bg-blue-300'"
-                class="h-full w-full rounded-lg mt-2 px-2 py-1 flex flex-col overflow-y-auto">
-                <div id="1"
-                    class="flex w-full h-15 bg-gray-900/50 rounded-lg my-1 hover:bg-gray-900 duration-150 items-center pl-2"
-                    @click="handleClick($event)">
-                    <span>Merlyn Joy Belga Belardo</span>
-                </div>
-                <div id="2"
-                    class="flex w-full h-15 bg-gray-900/50 rounded-lg my-1 hover:bg-gray-900 duration-150 items-center pl-2"
-                    @click="handleClick($event)">
-                    <span>a</span>
-                </div>
-                <div id="3"
-                    class="flex w-full h-15 bg-gray-900/50 rounded-lg my-1 hover:bg-gray-900 duration-150 items-center pl-2"
-                    @click="handleClick($event)">
-                    <span>b</span>
+                class="h-full w-full rounded-lg mt-2 px-2 py-1 overflow-y-auto">
+
+                <div v-for="conversation in conversationData" :key="conversation._id" :id="conversation._id"
+                    class="flex w-full h-15 bg-gray-900/50 rounded-lg my-1 mb-2 hover:bg-gray-900 duration-150 items-center pl-2"
+                    @click="handleClick($event, conversation._id)">
+                    <div v-if="conversation.participant[0].userID !== currentUser"
+                        class="relative flex justify-between w-full">
+                        <span>{{ conversation.participant[0].name }}</span>
+                        <span v-if="false"
+                            class="absolute right-1 -top-4 h-1 w-1 animate-ping rounded-full bg-red-500"></span>
+                        <span v-if="false" class="absolute right-1 -top-4 h-2 w-2 rounded-full bg-red-400"></span>
+                        <BellOff v-if="conversation.participant[0].mute.muteStatus" :size="20"
+                            class="flex items-center mr-2" />
+                    </div>
+
+                    <div v-else class="relative flex justify-between w-full">
+                        <span>
+                            {{ conversation.participant[1].name }} </span>
+                        <span class="absolute right-1 -top-4 h-2 w-2 animate-ping rounded-full bg-red-500"></span>
+                        <span class="absolute right-1 -top-4 h-2 w-2 rounded-full bg-red-400"></span>
+                        <BellOff v-if="conversation.participant[1].mute.muteStatus" :size="20"
+                            class="flex items-center mr-2" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -267,7 +284,7 @@ function handleClick(event: MouseEvent) {
                     :class="isDarkMode ? 'text-gray-200 bg-gray-800' : 'text-black bg-blue-400'">
                     <CircleEllipsis :size="40" />
                     <div class="w-full h-5 flex items-end mt-5">
-                        <input ref="inputRef" type="text" placeholder="TEXT" @keydown="handleKeyDown"
+                        <input id="message-input" ref="inputRef" type="text" placeholder="TEXT" @keydown="handleKeyDown"
                             class="w-full h-10 px-4 text-black text-base rounded-lg leading-tight"
                             :class="isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-200'" />
 

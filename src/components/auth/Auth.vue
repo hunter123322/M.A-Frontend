@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, toRef, toRefs } from 'vue'
 
 type ValidationResult = { isValid: boolean; message?: string }
 
@@ -16,22 +16,35 @@ const signupForm = ref({ email: '', password: '', confirmPassword: '' });
 const signupError = ref<string | null>(null);
 
 // Validation
-function validateForm(email: string, password: string, confirmPassword?: string): ValidationResult {
-    if (!email || !password || (confirmPassword !== undefined && !confirmPassword)) {
-        return { isValid: false, message: 'All fields are required!' }
+function validateForm(
+    email: string,
+    password: string,
+    confirmPassword?: string
+): ValidationResult {
+    // Check required fields
+    if (!email || !password || (confirmPassword !== undefined && confirmPassword.trim() === "")) {
+        return { isValid: false, message: "All fields are required!" };
     }
-    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$/
+
+    // Email validation
+    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
     if (!emailRegex.test(email)) {
-        return { isValid: false, message: 'Please enter a valid email address.' }
+        return { isValid: false, message: "Please enter a valid email address." };
     }
+
+    // Password length check
     if (password.length < 6) {
-        return { isValid: false, message: 'Password must be at least 6 characters long.' }
+        return { isValid: false, message: "Password must be at least 6 characters long." };
     }
+
+    // Confirm password match (only if provided)
     if (confirmPassword !== undefined && password !== confirmPassword) {
-        return { isValid: false, message: 'Passwords do not match!' }
+        return { isValid: false, message: "Passwords do not match!" };
     }
-    return { isValid: true }
+
+    return { isValid: true };
 }
+
 
 // Submit helper
 async function submitForm(url: string, data: Record<string, any>) {
@@ -42,19 +55,19 @@ async function submitForm(url: string, data: Record<string, any>) {
     })
     return { status: response.status, data: await response.json() }
 }
-
 // Handle Signup
 async function handleSignup() {
     signupError.value = null
-    const { email, password, confirmPassword } = signupForm.value
-    const validation = validateForm(email, password, confirmPassword)
+    const { email, password, confirmPassword } = toRefs(signupForm.value)
+    const validation = validateForm(email.value, password.value, confirmPassword.value)
     if (!validation.isValid) {
         signupError.value = validation.message || 'Invalid form data'
+        console.log(signupError.value);
         return
     }
 
     try {
-        const { status, data } = await submitForm('http://localhost:3000/signup', { username: email, password })
+        const { status, data } = await submitForm('http://localhost:3000/signup', { username: email.value, password: password.value })
         if (status === 200) {
             localStorage.setItem('user_id', data.user_id);
             activeTab.value = 'information'
