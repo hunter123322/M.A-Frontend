@@ -51,7 +51,8 @@ async function submitForm(url: string, data: Record<string, any>) {
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        credentials: 'include'
     })
     return { status: response.status, data: await response.json() }
 }

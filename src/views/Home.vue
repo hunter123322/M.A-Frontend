@@ -1,34 +1,64 @@
 <script setup lang="ts">
 import {
-    Aperture,
-    Settings,
-    User,
-    Palette,
-    VolumeX,
-    UserCircle2,
-    Video,
-    Phone,
-    Pin,
-    Ban,
-    DeleteIcon,
-    BadgeAlert,
-    AtSign,
-    SendHorizontal,
-    CircleEllipsis,
-    Sun,
-    Moon,
-    EllipsisVertical,
-    BellOff
+    Aperture, Settings, User,
+    Palette, VolumeX, UserCircle2,
+    Video, Phone, Pin,
+    DeleteIcon, BadgeAlert, AtSign,
+    SendHorizontal, Ban, CircleEllipsis,
+    Sun, Moon, EllipsisVertical,
+    BellOff, X
 } from 'lucide-vue-next';
 import { ref, onMounted, nextTick, watch } from 'vue';
-import testMessages from '@/testData/messageData';
 import { EmitMenuAction } from '@/script/socket.event';
 import { socket } from '@/script/socket.event';
-import conversationData from '@/testData/conversationData';
+import LoadingIcon from '@/components/homeComponents/LoadingIcon.vue';
+import axios from 'axios';
+const currentUser = localStorage.getItem("user_id");
 
-let crurentConversationID: string | null;
+let crurentConversationID: string | null = null;
+let currentReceiverID: string | null = null;
 
-socket.emit("joinConversation", "convAB");
+type Participant = {
+    userID: string,
+    firstName: string,
+    lastName: string,
+    nickname: string,
+    mute: { muteStatus: false, timeFrame: "" },
+    createdAt?: string,
+    updatedAt?: string
+}
+
+type Contacts = {
+    contactID: string,
+    _id?: string,
+    createdAt?: string,
+    updatedAt?: string,
+    participant: Participant[]
+}
+
+type ContactVal = {
+    success: boolean,
+    contacts: Contacts[]
+}
+
+type SearchContact = {
+    user_id: string,
+    firstName: string,
+    lastName: string,
+    middleName?: string,
+    age?: string
+}
+let conversationData: Contacts[] = []
+const searchContact = ref<SearchContact[] | null>(null);
+
+
+const initialLoad = ref(false)
+
+socket.emit("initContact", currentUser, async (val: ContactVal) => {
+    conversationData = val.contacts
+    initialLoad.value = true
+})
+socket.emit("joinConversation", crurentConversationID);
 
 export type TestMessage = {
     _id: string;
@@ -54,22 +84,39 @@ type Val = {
 
 let socketMessage: TestMessage[] = []
 
-socket.emit("getMessage", { conversationID: 1, latestMessage: 1 }, (val: Val) => {
-    console.log(val);
+const dataTobeSent = {
+    conversationID: "convAB",
+    createdAt: ""
+}
+
+socket.emit("getMessage", dataTobeSent, (val: Val) => {
     socketMessage = val.messages;
 });
 
 const messageContainer = ref<HTMLElement | null>(null);
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const isDarkMode = ref(true);
 const messageStates = ref<{ [key: string]: boolean }>({})
-const currentUser = localStorage.getItem("user_id");
 const messages = ref<TestMessage[]>([]);
 const inputRef = ref<HTMLInputElement | null>(null); // input field reference
+
 
 function scrollToBottom() {
     if (messageContainer.value) {
         messageContainer.value.scrollTop = messageContainer.value.scrollHeight;
+    }
+}
+
+function handleScroll() {
+    const el = messageContainer.value
+    if (!el) return
+
+    // At the very top
+    if (el.scrollTop === 0) {
+        const lastMessage = messages.value[0]
+        dataTobeSent.createdAt = lastMessage.createdAt;
+        socket.emit("getMessage", dataTobeSent, (val: Val) => {
+            socketMessage = val.messages;
+        });
     }
 }
 
@@ -81,7 +128,7 @@ onMounted(() => {
 });
 
 // Scroll whenever messages change
-watch(messages, () => {
+watch((messages), () => {
     nextTick(() => {
         scrollToBottom();
     });
@@ -106,13 +153,13 @@ async function sendMessage() {
     const text = inputRef.value?.value.trim();
     if (!text) return;
 
-    if(currentUser === null) return
+    if (currentUser === null) return
 
     // 1. Display instantly
     const tempMsg: TestMessage = {
         _id: Date.now().toString(),
         senderID: currentUser,
-        receiverID: "userB", // set your receiver dynamically
+        receiverID: currentReceiverID as string, // set your receiver dynamically
         conversationID: crurentConversationID as string, // set your conversation dynamically
         content: text,
         contentType: "text",
@@ -130,8 +177,6 @@ async function sendMessage() {
         EmitMenuAction.messageSend(tempMsg)
     } catch (err) {
         console.error("Send failed:", err);
-        // const idx = messages.value.findIndex(m => m._id === tempMsg._id);
-        // if (idx !== -1) messages.value[idx].status = "failed";
     }
 }
 
@@ -145,25 +190,12 @@ function handleKeyDown(e: KeyboardEvent) {
 
 socket.on("receiveMessage", (receivedMessage: TestMessage) => {
     messages.value.push(receivedMessage);
-    console.log(receivedMessage, "receiveMessage");
+    socketMessage.push(receivedMessage);
 });
 
-onMounted(() => {
-    if (textareaRef.value) {
-        const el = textareaRef.value;
-        const maxHeight = 200;
-        el.style.height = 'auto';
-        if (el.scrollHeight <= maxHeight) {
-            el.style.overflowY = 'hidden';
-            el.style.height = `${el.scrollHeight}px`;
-        } else {
-            el.style.overflowY = 'auto';
-            el.style.height = `${maxHeight}px`;
-        }
-    }
-});
+function handleClick(event: MouseEvent, conversationID: string, receiverID: string) {
+    console.log(receiverID, messages.value);
 
-function handleClick(event: MouseEvent, conversationID: string) {
     const div = event.currentTarget as HTMLElement;
     const span = div.querySelector("span");
     const spanText = span?.textContent ?? "";
@@ -180,13 +212,98 @@ function handleClick(event: MouseEvent, conversationID: string) {
     messages.value = socketMessage.filter(
         msg => msg.conversationID === conversationID
     );
+
+    // Assign the receiverID
+    // Prevent to load the same ID
+    if (currentReceiverID === receiverID) return;
+
+    // Assign the new receiverID
+    currentReceiverID = receiverID;
+
+    // Preventing to join in the same room
+    if (crurentConversationID === conversationID) return;
+
+    // Prevent from joining multiple rooms at once by leaving the room
+    socket.emit("leaveRoom", crurentConversationID);
+
+    // Assign the new conversationID
     crurentConversationID = conversationID;
+
+    // Join in new conversationID
+    socket.emit("joinConversation", crurentConversationID);
 }
+
+const contactSearchRef = ref<HTMLInputElement | null>(null)
+
+// Contact Search
+async function fetchContact() {
+    try {
+        const text = contactSearchRef.value?.value.trim();
+        if (!text) return;
+
+        // Send request to server 
+        const response = await axios.get<SearchContact[]>('http://localhost:3000/contact/search', {
+            params: { contactSearch: text },
+            withCredentials: true
+        });
+
+
+        if (response.status !== 200) return;
+        const responseData = response.data as SearchContact[];
+
+        console.log(responseData);
+        searchContact.value = responseData;
+
+
+    } catch (error) {
+        console.log(error)
+    }
+}
+
+function removeSearchContact() {
+    searchContact.value = null
+}
+
+function handleContactSearch(e: KeyboardEvent) {
+    const target = e.target as HTMLInputElement;
+
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        fetchContact();
+    }
+}
+
+function sideBar(event: MouseEvent) {
+    const div = event.currentTarget as HTMLElement;
+    const span = div.querySelector("span");
+    const spanText = span?.textContent ?? "";
+
+    const contactPerson = document.getElementById("contact-person");
+    if (!contactPerson) return;
+    const targetSpan = contactPerson.querySelector("span");
+    const sideBar = document.getElementById("side-bar") as HTMLElement;
+
+    if (!targetSpan) return;
+    targetSpan.textContent = spanText;
+    sideBar.classList.remove("hidden");
+
+    messages.value = [];
+
+    
+}
+
+
 </script>
 
 
 <template>
-    <section :class="isDarkMode ? 'bg-black text-white' : 'bg-white text-black'" class="flex flex-row">
+    <LoadingIcon size="lg" color="blue" :class="initialLoad ? 'hidden' : 'absolute'" class=" left-1/2 top-1/2 ">Fetching
+        messages...
+    </LoadingIcon>
+    <section :class="[
+        isDarkMode ? 'bg-black text-white' : 'bg-white text-black',
+        initialLoad ? 'flex' : 'hidden'
+    ]" class=" flex-row">
         <div :class="isDarkMode ? 'bg-black' : 'bg-white'" class="flex flex-col h-screen w-1/4 pr-3">
             <div :class="isDarkMode ? 'bg-blue-400/40' : 'bg-blue-300'" class="h-1/4 w-full rounded-lg mb-2 p-1">
                 <div id="profile-section" class="m-1 p-2 flex flex-row items-center">
@@ -197,8 +314,8 @@ function handleClick(event: MouseEvent, conversationID: string) {
                     </button>
                 </div>
                 <div class="flex ml-3 align-bottom items-center ">
-                    <input type="text" placeholder="Search Contact"
-                        class="w-auto h-10 px-4 bg-gray-400 rounded-lg text-black" />
+                    <input ref="contactSearchRef" id="search-contact" type="text" placeholder="Search Contact"
+                        @keydown="handleContactSearch" class="w-auto h-10 px-4 bg-gray-400 rounded-lg text-black" />
                     <label class="relative inline-block w-14 h-8 ml-6 cursor-pointer">
                         <input type="checkbox" v-model="isDarkMode" class="sr-only peer">
                         <span :class="isDarkMode ? 'hidden' : 'flex'">
@@ -215,12 +332,46 @@ function handleClick(event: MouseEvent, conversationID: string) {
             <div :class="isDarkMode ? 'bg-blue-400/40' : 'bg-blue-300'"
                 class="h-full w-full rounded-lg mt-2 px-2 py-1 overflow-y-auto">
 
-                <div v-for="conversation in conversationData" :key="conversation._id" :id="conversation._id"
+                <div :class="searchContact === null ? 'hidden' : 'flex'"
+                    class="h-auto w-full bg-blue-100/10 rounded-lg p-1 flex-col">
+                    <div class="flex justify-between w-full">
+                        <span>Search...</span>
+                        <X :size="20" @click="removeSearchContact"
+                            class="hover:scale-150 hover:text-red-400 duration-300 cursor-pointer" />
+                    </div>
+                    <div class="w-full h-0.5 rounded-lg my-2 bg-white" />
+                    <div v-for="contact in searchContact" :key="contact.user_id" :id="contact.user_id"
+                        @click="sideBar($event)"
+                        class="flex flex-row items-center p-1 my-1 bg-gray-900/50 rounded-lg hover:bg-gray-900/65">
+                        <Aperture :size="20" class="mx-1" />
+                        <span>{{ contact.firstName + " " + contact.lastName }}</span>
+                    </div>
+
+                </div>
+
+                <!-- 
+                Loop through all conversations using v-for. 
+                For each conversation:
+                    - The :key helps Vue track each item efficiently.
+                    - The :receiverID uses a shorthand if-else (ternary) to pick the other participant:
+                            conversation.participant[0].userID === currentUser ? conversation.participant[1].userID : conversation.participant[0].userID means:
+                    If participant[0] is the current user, use participant[1]'s ID, otherwise use participant[0]'s ID. -->
+                <div v-for="conversation in conversationData" :key="conversation._id" :id="conversation.contactID"
+                    :receiverID="conversation.participant[0].userID === currentUser
+                        ? conversation.participant[1].userID
+                        : conversation.participant[0].userID"
                     class="flex w-full h-15 bg-gray-900/50 rounded-lg my-1 mb-2 hover:bg-gray-900 duration-150 items-center pl-2"
-                    @click="handleClick($event, conversation._id)">
+                    @click="handleClick(
+                        $event,
+                        conversation.contactID,
+                        conversation.participant[0].userID === currentUser
+                            ? conversation.participant[1].userID
+                            : conversation.participant[0].userID
+                    )">
+
                     <div v-if="conversation.participant[0].userID !== currentUser"
                         class="relative flex justify-between w-full">
-                        <span>{{ conversation.participant[0].name }}</span>
+                        <span>{{ conversation.participant[0].firstName }}</span>
                         <span v-if="false"
                             class="absolute right-1 -top-4 h-1 w-1 animate-ping rounded-full bg-red-500"></span>
                         <span v-if="false" class="absolute right-1 -top-4 h-2 w-2 rounded-full bg-red-400"></span>
@@ -230,7 +381,7 @@ function handleClick(event: MouseEvent, conversationID: string) {
 
                     <div v-else class="relative flex justify-between w-full">
                         <span>
-                            {{ conversation.participant[1].name }} </span>
+                            {{ conversation.participant[1].firstName }} </span>
                         <span class="absolute right-1 -top-4 h-2 w-2 animate-ping rounded-full bg-red-500"></span>
                         <span class="absolute right-1 -top-4 h-2 w-2 rounded-full bg-red-400"></span>
                         <BellOff v-if="conversation.participant[1].mute.muteStatus" :size="20"
@@ -245,7 +396,8 @@ function handleClick(event: MouseEvent, conversationID: string) {
             <div :class="isDarkMode ? 'bg-blue-300/30' : 'bg-blue-400'"
                 class="w-full h-full rounded-lg mr-2 flex flex-col">
 
-                <div ref="messageContainer" class="flex flex-col rounded-lg h-screen overflow-y-auto">
+                <div ref="messageContainer" @scroll="handleScroll"
+                    class="flex flex-col rounded-lg h-screen overflow-y-auto">
                     <div v-for="msg in messages" :key="msg._id" :id="msg._id" class="flex flex-col space-y-2"
                         :class="msg.senderID === currentUser ? 'self-end' : 'self-start'">
                         <div class="flex flex-row my-0">
@@ -272,6 +424,7 @@ function handleClick(event: MouseEvent, conversationID: string) {
                             </template>
                         </div>
 
+                        <!-- Message Status -->
                         <div class="justify-center space-x-5 text-black"
                             :class="messageStates[msg._id] ? 'flex' : 'hidden'">
                             <span>{{ formatDate(msg.createdAt) }}</span>
@@ -287,8 +440,6 @@ function handleClick(event: MouseEvent, conversationID: string) {
                         <input id="message-input" ref="inputRef" type="text" placeholder="TEXT" @keydown="handleKeyDown"
                             class="w-full h-10 px-4 text-black text-base rounded-lg leading-tight"
                             :class="isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-200'" />
-
-
                     </div>
                     <SendHorizontal :size="40" class="cursor-pointer" @click="sendMessage" />
                 </div>

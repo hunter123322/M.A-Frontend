@@ -10,10 +10,16 @@ import {
   receiveReactMessage,
 } from './socket.on.js/edit.message.on.js'
 
+const user_id = localStorage.getItem("user_id");
+
 export const socket = io("http://localhost:3000", {
   withCredentials: true,
-  transports: ["websocket"] // skip polling if you want
+  transports: ["websocket"],
+  auth: {
+    user_id,
+  },
 });
+
 
 export class EmitMenuAction {
   static editMessage(messageId: string, editedMessage: string) {
