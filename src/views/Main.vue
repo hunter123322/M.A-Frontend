@@ -12,6 +12,7 @@ import {
     CircleEllipsis, SendHorizontal
 } from "lucide-vue-next";
 import { socket } from "@/script/socket.event";
+import ProfilePost from "@/components/profile/ProfilePost.vue";
 
 type User = {
     id: string;
@@ -298,7 +299,7 @@ const isOnChat = ref(false)
     </div>
 
     <div :class="searching || isOnChat ? 'hidden' : ''"
-        class="max-w-2xl mx-auto md:mt-15 p-4 md:p-6 pb-20 space-y-8 text-white">
+        class="mx-auto md:mt-15 p-4 md:pt-6 md:p-0 pb-20 space-y-8 text-white">
         <!-- Find Stranger Section -->
         <section class="bg-gray-900 rounded-2xl p-3 border border-gray-800 shadow-lg">
             <h2
@@ -332,122 +333,12 @@ const isOnChat = ref(false)
                 </button>
             </div>
         </section>
-        
+
         <PostSection class="bg-sky-950" />
 
         <!-- Feeds Section -->
-        <section>
-            <h2 class="text-xl font-semibold mb-4 text-gray-100">Community Feed</h2>
-            <div class="space-y-6">
-                <div v-for="post in posts" :key="post.id" :id="post.id"
-                    class="bg-sky-950 rounded-2xl overflow-hidden border border-gray-800">
-                    <div class="p-4 flex items-center gap-3">
-                        <img :src="post.author.avatarUrl" alt="avatar"
-                            class="w-10 h-10 rounded-full border-2 border-purple-800" />
-                        <div>
-                            <span class="font-semibold text-xs">{{
-                                post.author.email
-                            }}</span>
-                            <p class="text-xs text-brand-subtle">{{ post.timestamp }}</p>
-
-                        </div>
-
-                    </div>
-                    <p class="text-xs mb-2 ml-4">{{  post.caption }}</p>
-
-                    <img :src="post.imageUrl" alt="post image" class="w-full h-auto max-h-[70vh] object-cover" />
-
-                    <div class="p-4">
-                        <div class="flex items-center text-brand-subtle space-x-6">
-                            <button class="flex items-center gap-2 hover:text-pink-500 transition-colors">
-                                <Heart class="w-4 h-4" />
-                                <span class="font-medium">{{ post.likes }}</span>
-                            </button>
-                            <button class="flex items-center gap-2 hover:text-blue-400 transition-colors">
-                                <MessageSquare class="w-4 h-4" @click="showComment(post.id)" />
-                                <span class="font-medium">
-                                    {{ post.comments.length }}
-                                </span>
-                            </button>
-                            <button class="flex items-center gap-2 hover:text-green-400 transition-colors ml-auto">
-                                <Share2 class="w-4 h-4" />
-                                <span>Share</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Comment Section -->
-                    <div :class="isCommentId.includes(post.id) ? '' : 'hidden'"
-                        class="p-4 border-t border-gray-700 space-y-4">
-                        <!-- Comments -->
-                        <div v-for="comment in post.comments" :key="comment.id" :id="comment.id">
-                            <div class="flex items-start gap-3">
-                                <img :src="comment.author.avatarUrl"
-                                    class="w-8 h-8 rounded-full border border-purple-700" />
-                                <div class="flex-1">
-                                    <div class="bg-gray-800/50 rounded-xl p-3">
-                                        <span class="font-semibold text-xs">{{
-                                            comment.author.email
-                                        }}</span>
-                                        <p class="text-xs text-gray-200">{{ comment.text }}</p>
-                                    </div>
-                                    <div class="flex items-center gap-4 text-xs text-gray-400 mt-1">
-                                        <button class="hover:text-pink-500 flex items-center gap-1"
-                                            @click="comment.likes++">
-                                            <Heart class="w-3 h-3" />
-                                            {{ comment.likes }}
-                                        </button>
-                                        <button class="hover:text-blue-400"
-                                            @click="comment.showReply = !comment.showReply">
-                                            Reply
-                                        </button>
-                                    </div>
-
-                                    <!-- Replies -->
-                                    <div v-if="comment.replies.length" class="ml-8 mt-3 space-y-2">
-                                        <div v-for="reply in comment.replies" :key="reply.id"
-                                            class="flex items-start gap-2">
-                                            <img :src="reply.author.avatarUrl"
-                                                class="w-6 h-6 rounded-full border border-purple-600" />
-                                            <div class="bg-gray-800/40 rounded-xl p-2 flex-1">
-                                                <span class="font-semibold text-xs">{{
-                                                    reply.author.email
-                                                }}</span>
-                                                <p class="text-xs text-gray-300">{{ reply.text }}</p>
-                                                <button
-                                                    class="mt-1 text-[10px] hover:text-pink-400 flex items-center gap-1"
-                                                    @click="reply.likes++">
-                                                    <Heart class="w-3 h-3" />
-                                                    {{ reply.likes }}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Reply Input -->
-                                    <div v-if="comment.showReply" class="ml-8 mt-2 flex gap-2">
-                                        <input v-model="comment.replyText" placeholder="Write a reply..."
-                                            class="flex-1 px-3 py-1 text-xs rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-purple-500" />
-                                        <button class="text-xs bg-purple-700 px-3 rounded-lg"
-                                            @click="addReply(post.id, comment.id, comment.replyText)">
-                                            Send
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- New Comment -->
-                        <div class="flex items-center gap-2">
-                            <input v-model="newComments[post.id]" placeholder="Add a comment..."
-                                class="flex-1 px-3 py-2 text-xs rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-purple-500" />
-                            <button class="bg-purple-700 px-4 py-2 rounded-lg text-xs" @click="addComment(post.id)">
-                                Post
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <section class="space-y-6">
+            <ProfilePost />
         </section>
     </div>
 </template>

@@ -124,7 +124,7 @@ function sideBar(event: MouseEvent) {
 </script>
 
 <template>
-    <section class="flex flex-col h-full w-full p-4 bg-gray-900 text-gray-100">
+    <section class="flex flex-col h-full w-full p-4 md:p-0 py-4 bg-gray-900 text-gray-100">
         <!-- Search Bar -->
         <div class="w-full mb-3">
             <div class="flex items-center bg-gray-800 rounded-lg px-3 py-2 shadow-sm">

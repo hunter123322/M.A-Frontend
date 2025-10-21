@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from "vue";
 import { Image, Heart, MessageSquare, Share2 } from "lucide-vue-next";
-import { posts, type Post, type User } from "@/stores/profile/postMock";
+import { posts } from "@/stores/profile/postMock";
+import type { User, Post, JWTPayload } from "@/types/homepage.type";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 
-const currentUser: User = {
-    id: "u1",
-    email: "Hunter",
-    avatarUrl: "./avatar/Avatar_1.png",
-};
+const currentUser = ref<User | null>(null)
 
 const newPost = ref<Partial<Post>>({
     caption: "",
@@ -18,6 +15,10 @@ const newPost = ref<Partial<Post>>({
 });
 
 const imagePreview = ref<string | null>(null);
+
+const JWT = localStorage.getItem("jwt_token") ?? "";
+const decodedJWT: JWTPayload = jwtDecode(JWT);
+currentUser.value = decodedJWT.author
 
 function handleImageUpload(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -60,13 +61,6 @@ export type PostData = {
     updatedAt?: string;
 };
 
-type JWTPayload = {
-    user_id: number;
-    email?: string;
-    username: string;
-    author?: User
-}
-
 async function submitPost() {
     if (!newPost.value.caption && !newPost.value.imageUrl) return;
 
@@ -82,7 +76,7 @@ async function submitPost() {
     };
 
     try {
-        await axios.post("http://localhost:3000/post/create", [post], {
+        const { status, data } = await axios.post("http://localhost:3000/post/create", post, {
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${JWT}`,
@@ -93,14 +87,11 @@ async function submitPost() {
         newPost.value = { caption: "", imageUrl: "", type: "text" };
         imagePreview.value = null;
 
-        console.log("✅ Post successfully created!");
+        if (status !== 201 || !data) return
+        posts.value.push(data)
     } catch (error) {
         console.error("❌ Failed to create post:", error);
     }
-}
-
-function showComment(postId: string) {
-    console.log("Open comments for post:", postId);
 }
 
 const autoResizeTextarea = ref<HTMLTextAreaElement | null>(null)
@@ -126,7 +117,8 @@ onMounted(() => {
     <!-- Create Post Section -->
     <section class="mb-8 border border-gray-800 rounded-2xl p-4">
         <div class="flex items-start gap-3">
-            <img :src="currentUser.avatarUrl" alt="avatar" class="w-10 h-10 rounded-full border-2 border-purple-800" />
+            <img :src="`./avatar/Avatar_${currentUser?.avatarUrl}.png`" alt="avatar"
+                class="w-10 h-10 rounded-full border-2 border-purple-800" />
 
             <div class="flex-1 ">
                 <textarea v-model="newPost.caption" placeholder="What's on your mind?"

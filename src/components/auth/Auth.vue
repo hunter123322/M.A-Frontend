@@ -126,7 +126,7 @@ async function handleLogin() {
       localStorage.setItem('contact', JSON.stringify(contact))
     }
 
-    window.location.href = `/profile`
+    window.location.href = `/`
   } else {
     loginError.value = data.error || 'Login failed'
   }

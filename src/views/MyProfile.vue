@@ -50,8 +50,8 @@
                 </div>
 
                 <div class="space-y-1">
-                    <p class="text-xl font-extrabold text-white">{{ mockUser.email }}</p>
-                    <p class="text-xs text-gray-400">Followers: 1.2K | Posts: {{ mockUser.posts }}</p>
+                    <p class="text-xl font-extrabold text-white">{{ myProfileData?.user_nickname }}</p>
+                    <p class="text-xs text-gray-400">Followers: 1.2K | Posts: {{ myProfileData?.user_follower }}</p>
                     <button
                         class="flex items-center text-xs font-medium text-purple-300 bg-purple-900/50 border border-purple-600/50 px-3 py-1 rounded-full hover:bg-purple-800 transition-colors">
                         Edit Profile
@@ -80,7 +80,10 @@
 
         </header>
 
-
+        <h2 class="text-xl mt-4 mx-4 md:mx-0 font-bold text-white flex items-center justify-between">
+            <span class="border-b-2 border-pink-500 pb-1">My Posts</span>
+            <ChevronRight class="w-5 h-5 text-gray-400" />
+        </h2>
         <!-- Profile Posts Section -->
         <section class="p-4 space-y-6">
             <ProfilePost />

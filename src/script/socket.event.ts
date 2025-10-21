@@ -2,20 +2,20 @@ import { io } from 'socket.io-client'
 import { deleteMessage } from './socket.emit/delete.message.emit'
 import { editMessage } from './socket.emit/edit.message.emit.js'
 import { reactMessage } from './socket.emit/react.message.emit.js'
-import type { TestMessage } from '@/views/Home.vue'
 import {
   newMessageNotification,
   receiveDeletedMessage,
   receiveEditMessage,
   receiveReactMessage,
-} from './socket.on.js/edit.message.on.js'
+} from './socket.on/edit.message.on.js'
 import { user } from '@/stores/user.js'
 import { newContact } from '@/stores/contact.js'
 import { useReceiver } from '@/stores/receiver.js'
 const { currentReceiverID } = useReceiver();
 import { useConversation } from '@/stores/conversation.js'
-const { currentConversationID, conversationData } = useConversation();
+const { conversationData } = useConversation();
 import axios from 'axios'
+import { Notification } from './socket.on/notification.on.js'
 
 
 type Participant = {
@@ -28,7 +28,23 @@ type Participant = {
   updatedAt?: string
 }
 
-const user_id = localStorage.getItem('user_id')
+type TestMessage = {
+  _id: string;
+  senderID: number;
+  receiverID: number;
+  conversationID: string;
+  content: string;
+  contentType: string;
+  reactions: {
+    userID: string;
+    emoji: string;
+  }[];
+  status: string;
+  hide: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const token = localStorage.getItem('jwt_token')
 
 export const socket = io('http://localhost:3000', {
@@ -117,3 +133,4 @@ receiveEditMessage(socket)
 receiveReactMessage(socket)
 receiveDeletedMessage(socket)
 newMessageNotification(socket)
+Notification.listener(socket)
