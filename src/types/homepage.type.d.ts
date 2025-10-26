@@ -57,3 +57,22 @@ export type NotificationType = {
     createdAt?: string;
     updatedAt?: string;
 }
+
+export type PersonResult = {
+    id: number;
+    username: string;
+    avatarUrl: number;
+    following: number;
+    follower: number;
+    followed: boolean;
+    bio: string;
+};
+
+export type MyProfileData = {
+  user_id: number;
+  user_bio: string;
+  user_follower: number;
+  user_avatar: number;
+  user_nickname: string;
+  user_following: number;
+};

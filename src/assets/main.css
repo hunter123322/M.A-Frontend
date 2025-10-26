@@ -4,4 +4,12 @@
 @import 'tailwindcss/utilities';
 @import 'tailwindcss';
 
+/* Hide scrollbar for Chrome, Safari, Edge */
+::-webkit-scrollbar {
+  display: none;
+}
 
+/* Hide scrollbar for Firefox */
+* {
+  scrollbar-width: none;
+}

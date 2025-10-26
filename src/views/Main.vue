@@ -299,7 +299,7 @@ const isOnChat = ref(false)
     </div>
 
     <div :class="searching || isOnChat ? 'hidden' : ''"
-        class="mx-auto md:mt-15 p-4 md:pt-6 md:p-0 pb-20 space-y-8 text-white">
+        class="mx-auto p-4 md:pt-6 md:p-0 pb-20 space-y-8 text-white">
         <!-- Find Stranger Section -->
         <section class="bg-gray-900 rounded-2xl p-3 border border-gray-800 shadow-lg">
             <h2

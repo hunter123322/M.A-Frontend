@@ -2,6 +2,9 @@
 import { BellOff, ChevronRight } from "lucide-vue-next";
 import type { NotificationType } from "@/types/homepage.type";
 import { notifications, rawNotifications } from "@/stores/notification/notification.store";
+import Post from "@/components/preview/Post.vue";
+import { isPostPreview } from "@/stores/profile/post.preview";
+import { getNotificationLink } from "@/script/notification/main";
 
 
 function getAvatarUrl(userID: number) {
@@ -34,6 +37,7 @@ function handleNotificationClick(ID: string) {
 </script>
 
 <template>
+  <Post :class="isPostPreview ? '' : 'hidden'" />
   <div class="mx-auto p-4 md:pt-6 md:p-0 text-white">
     <h1 class="text-2xl font-bold mb-6 text-gray-100">Notifications</h1>
 
@@ -46,7 +50,7 @@ function handleNotificationClick(ID: string) {
 
       <!-- Notification list -->
       <div v-for="n in notifications" :key="n._id" :class="n.read ? 'bg-gray-900' : 'bg-gray-700'"
-        @click="handleNotificationClick(n._id)"
+        @click="[handleNotificationClick(n._id), getNotificationLink(n)]"
         class="p-2 rounded-xl flex items-center gap-2 border border-gray-800 hover:border-pink-500/50 transition-colors">
         <img :src="getAvatarUrl(n.userID)" alt="avatar" class="w-8 h-8 rounded-full shrink-0" />
 

@@ -14,16 +14,21 @@ const { currentConversationID, conversationData } = useConversation();
 const { returnMessageData } = useReqData();
 import { isMessageEvent } from '@/stores/message';
 import { contactName, newContact } from '@/stores/contact';
-const currentUser = + (localStorage.getItem("user_id") || "0");
+const currentUser = Number(localStorage.getItem("user_id") || "");
 
 // Types 
 type SearchContact = {
-    user_id: number,
-    firstName: string,
-    lastName: string,
-    middleName?: string,
-    age?: string
-}
+    user_id: number;
+    firstName: string;
+    lastName: string;
+    middleName?: string;
+    age?: number;
+    user_avatar: number;
+    user_bio?: string;
+    user_follower: number;
+    user_following: number;
+    user_nickname: string;
+};
 
 
 
@@ -33,6 +38,8 @@ const searchContact = ref<SearchContact[] | null>(null);
 
 // Hanlde Contact
 function handleClick(receiverID: number, conversationID?: string | null) {
+    console.log(receiverID, conversationID);
+    returnMessageData.value = JSON.parse(localStorage.getItem('messageData') || '[]')
 
     if (!conversationID && searchContact) {
         conversationID = null
@@ -43,6 +50,7 @@ function handleClick(receiverID: number, conversationID?: string | null) {
             contactName.value = `${contact.firstName} ${contact.lastName}`
             console.log(`${contact.firstName} ${contact.lastName}`);
 
+            conversationID = contact.user_id < currentUser ? `conv${contact.user_id}_${currentUser}` : `conv${currentUser}_${contact.user_id}`
         }
 
     } else {
@@ -59,6 +67,8 @@ function handleClick(receiverID: number, conversationID?: string | null) {
     messages.value = returnMessageData.value.filter(
         msg => msg.conversationID === conversationID
     );
+    console.log(messages.value);
+    isMessageEvent.value = true
 
     // Prevent to load the same ID
     if (currentReceiverID.value === receiverID) return;
@@ -117,10 +127,6 @@ function handleContactSearch(e: KeyboardEvent) {
     }
 }
 
-function sideBar(event: MouseEvent) {
-    messages.value = [];
-}
-
 </script>
 
 <template>
@@ -137,7 +143,7 @@ function sideBar(event: MouseEvent) {
         <!-- Main Body -->
         <div class="flex-1 w-full overflow-y-auto space-y-4">
             <!-- Search Results -->
-            <div v-if="searchContact !== null" class="bg-gray-800 rounded-lg p-3 shadow-md">
+            <div v-if="searchContact !== null" class="bg-gray-800 rounded-lg mx-3 p-3 shadow-md">
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-xs font-semibold text-gray-300">Search Results</span>
                     <X :size="20" @click="removeSearchContact"
@@ -147,9 +153,10 @@ function sideBar(event: MouseEvent) {
                 <!-- Search Contact Result -->
                 <div class="space-y-2">
                     <div v-for="contact in searchContact" :key="contact.user_id" :id="contact.user_id.toString()"
-                        @click="[sideBar($event), handleClick(contact.user_id), isMessageEvent = true]"
+                        @click="handleClick(contact.user_id)"
                         class="flex items-center gap-2 px-3 py-2 rounded-md bg-gray-700/50 hover:bg-gray-700 cursor-pointer transition">
-                        <Aperture :size="18" class="text-pink-400" />
+                        <img :src="`./avatar/Avatar_${contact.user_avatar}.png`" alt="Avater"
+                            class="w-10 h-10 rounded-full">
                         <span class="truncate">{{ contact.firstName }} {{ contact.lastName }}</span>
                     </div>
                 </div>

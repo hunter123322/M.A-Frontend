@@ -103,9 +103,6 @@ type Val = {
     success: boolean,
 }
 
-     returnMessageData.value = JSON.parse(localStorage.getItem('messageData') || '[]')
-
-
 // socket.emit("getMessage", getMessageReqData.value, (val: Val) => {
 //     returnMessageData.value = val.messages;
 // });
@@ -220,6 +217,8 @@ type Message =  {
 }
 
 socket.on("receiveMessage", (receivedMessage: TestMessage) => {    
+    console.log(receivedMessage, "receive message");
+    
     messages.value.push(receivedMessage);
     // returnMessageData.value.push(receivedMessage);
     let messageData: Message[] = JSON.parse(localStorage.getItem('messageData') || '[]')

@@ -1,14 +1,15 @@
 import { posts } from "@/stores/profile/postMock";
-import { myProfileData, type MyProfileData } from "@/stores/user";
-import type { Post, JWTPayload, CommentType } from "@/types/homepage.type";
+import { myProfileData } from "@/stores/user";
+import type { Post, JWTPayload, CommentType, MyProfileData } from "@/types/homepage.type";
 import axios from "axios";
 import { ref } from "vue";
 import { jwtDecode } from "jwt-decode";
 import { comments } from "@/stores/profile/commentMock";
+import { profilePreview } from "@/stores/profile/profile.preview";
 
 let hasBeenCalled = false
 
-export async function initProfile() {
+export async function initProfile(ID?: number) {
     try {
         if (hasBeenCalled) return;
 
@@ -20,13 +21,15 @@ export async function initProfile() {
         if (token) {
             headers['Authorization'] = `Bearer ${token}`
         }
-        const userProfile = await axios.get<{ userProfile: MyProfileData, myPosts: Post[] }>('http://localhost:3000/user/profile/init', {
+        const userProfile = await axios.get<{ userProfile: MyProfileData, myPosts: Post[] }>("http://localhost:3000/user/profile/init", {
             headers,
             withCredentials: true
         });
 
         if (!userProfile || userProfile.status !== 200) return
+
         myProfileData.value = userProfile.data.userProfile
+        profilePreview.value = userProfile.data.userProfile
         posts.value.unshift(...userProfile.data.myPosts)
         hasBeenCalled = true
     } catch (error) {
@@ -43,6 +46,7 @@ export const formatTimeAgo = (dateStr: Date, isComment: boolean = false) => {
 };
 
 export const myNewComment = ref("")
+export const commentQueryData = ref<CommentType | null>(null)
 export const openCommentID = ref<string>("");
 export const sortedComment = ref<CommentType[]>([]);
 
@@ -68,6 +72,7 @@ export async function handleComment() {
             postID: openCommentID.value,
             text: myNewComment.value,
             author: decodedJWT.author,
+            commentID: commentQueryData.value?._id ?? null
         }, {
             headers: {
                 "Content-Type": "application/json",
@@ -76,6 +81,7 @@ export async function handleComment() {
         });
         myNewComment.value = ""; // clear input
         if (!data) throw new Error(data.message);
+        console.log(data);
 
         comments.value.push(data.comment);
         sortedComment.value.push(data.comment)
@@ -85,6 +91,8 @@ export async function handleComment() {
     } catch (error) {
         console.error("Failed to send comment:", error);
     }
+
+    commentQueryData.value = null;
 };
 
 let lastID: string = "";
@@ -96,13 +104,13 @@ export async function getComment(postID: string, toShowMore: boolean = false) {
     const JWT = localStorage.getItem("jwt_token");
     if (!JWT) return;
 
-    const decodedJWT: JWTPayload = jwtDecode(JWT);
     try {
         if (toShowMore) {
             const { status, data } = await axios.get("http://localhost:3000/post/comment/getMore", {
                 params: {
                     postID: postID,
-                    lastCommentTimestamp: comments.value[0].createdAt
+                    // Reverse the comment
+                    lastCommentTimestamp: sortedComment.value[0].createdAt
                 },
                 headers: {
                     "Content-Type": "application/json",
@@ -113,9 +121,11 @@ export async function getComment(postID: string, toShowMore: boolean = false) {
             if (status !== 200) {
                 throw new Error(data.message);
             }
+
             console.log(data);
             comments.value.push(...data);
-            sortedComment.value.push(...data)
+            sortedComment.value.push(...data);
+            sortedComment.value.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
             return;
         }
         const { status, data } = await axios.get("http://localhost:3000/post/comment/get", {
@@ -131,7 +141,9 @@ export async function getComment(postID: string, toShowMore: boolean = false) {
         if (status !== 200) {
             throw new Error(data.message);
         }
+        console.log(data);
         comments.value = [...data];
+
     } catch (error) {
         console.log(error);
     }
